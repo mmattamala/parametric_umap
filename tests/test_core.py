@@ -116,13 +116,13 @@ class TestParametricUMAPTransform:
 
         assert isinstance(result, np.ndarray)
         assert result.shape == (len(sample_2d_data), fitted_pumap.n_components)
-        assert result.dtype == np.float32
+        assert result.dtype == sample_2d_data.dtype
 
     def test_transform_torch_tensor(self, fitted_pumap, torch_tensor_data):
         """Test transform with torch tensor input."""
         result = fitted_pumap.transform(torch_tensor_data)
 
-        assert isinstance(result, np.ndarray)
+        assert isinstance(result, torch.Tensor)
         assert result.shape == (len(torch_tensor_data), fitted_pumap.n_components)
 
     def test_transform_unfitted_model(self, sample_2d_data):

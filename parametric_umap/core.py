@@ -184,16 +184,16 @@ class ParametricUMAP:
             The fitted model.
 
         """
-        X = np.asarray(X).astype(np.float32)
+        _X = torch.as_tensor(X, dtype=torch.float32)
 
         # Initialize model if not already done
         if self.model is None:
-            self._init_model(X.shape[1])
+            self._init_model(_X.shape[1])
 
         # Create datasets.  In low_memory mode, keep data on CPU and
         # transfer each batch to the compute device during training.
-        dataset = VariableDataset(X) if low_memory else VariableDataset(X).to(self.device)
-        P_sym = compute_all_p_umap(X, k=self.n_neighbors)
+        dataset = VariableDataset(_X) if low_memory else VariableDataset(_X).to(self.device)
+        P_sym = compute_all_p_umap(_X, k=self.n_neighbors)
         ed = EdgeDataset(P_sym)
 
         # Initialize optimizer
@@ -213,7 +213,7 @@ class ParametricUMAP:
         # Pre-place edge weights and input-space distances on the compute
         # device (or CPU in low_memory mode) so batch slicing is fast.
         _tensor_device = "cpu" if low_memory else self.device
-        all_weights_t, all_x_dists_t = self._precompute_edge_tensors(X, ed.all_edges, ed.all_weights, _tensor_device)
+        all_weights_t, all_x_dists_t = self._precompute_edge_tensors(_X, ed.all_edges, ed.all_weights, _tensor_device)
 
         if verbose:
             print("Training...")
@@ -272,7 +272,7 @@ class ParametricUMAP:
                     random_state=random_state + epoch + 1,
                 )
                 all_weights_t, all_x_dists_t = self._precompute_edge_tensors(
-                    X, ed.all_edges, ed.all_weights, _tensor_device
+                    _X, ed.all_edges, ed.all_weights, _tensor_device
                 )
 
             avg_loss = epoch_loss / num_batches
@@ -313,23 +313,33 @@ class ParametricUMAP:
         if not self.is_fitted:
             raise RuntimeError("Model must be fitted before transform")
 
-        X = np.asarray(X, dtype=np.float32)
-        if X.shape[1] != self._unwrapped_model.input_dim:
-            msg = f"X has {X.shape[1]} features, but model was fitted with {self._unwrapped_model.input_dim} features"
+        _X = torch.as_tensor(X, dtype=torch.float)
+
+        if _X.shape[1] != self._unwrapped_model.input_dim:
+            msg = f"X has {_X.shape[1]} features, but model was fitted with {self._unwrapped_model.input_dim} features"
             raise ValueError(msg)
 
         self.model.eval()
 
         with torch.no_grad():
             if batch_size is None:
-                X_t = torch.as_tensor(X, dtype=torch.float32).to(self.device)
-                return self.model(X_t).cpu().numpy()
+                X_t = torch.as_tensor(_X, dtype=torch.float32).to(self.device)
+                # return self.model(X_t).cpu().numpy()
+                if type(X) is np.ndarray:
+                    return self.model(X_t).cpu().numpy()
+                return self.model(X_t).to(X.device)
 
             parts = []
+            # for start in range(0, X.shape[0], batch_size):
+            #     batch = torch.as_tensor(X[start : start + batch_size], dtype=torch.float32).to(self.device)
+            #     parts.append(self.model(batch).cpu())
+            # return torch.cat(parts, dim=0).numpy()
             for start in range(0, X.shape[0], batch_size):
-                batch = torch.as_tensor(X[start : start + batch_size], dtype=torch.float32).to(self.device)
-                parts.append(self.model(batch).cpu())
-            return torch.cat(parts, dim=0).numpy()
+                batch = torch.as_tensor(_X[start : start + batch_size], dtype=torch.float32).to(self.device)
+                parts.append(self.model(batch))
+            if type(X) is np.ndarray:
+                return torch.cat(parts, dim=0).cpu().numpy()
+            return torch.cat(parts, dim=0)
 
     def fit_transform(
         self,
