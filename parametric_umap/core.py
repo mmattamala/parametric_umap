@@ -56,6 +56,7 @@ class ParametricUMAP:
         use_batchnorm: bool = False,
         use_dropout: bool = False,
         compile_model: bool = False,
+        model: torch.nn.Module = None,
     ) -> None:
         """Initialize ParametricUMAP.
 
@@ -114,7 +115,7 @@ class ParametricUMAP:
         self.use_dropout = use_dropout
         self.compile_model = compile_model
 
-        self.model = None
+        self.model = model if model is not None else None
         self.loss_fn = nn.BCELoss()
         self.is_fitted = False
 
