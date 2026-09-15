@@ -37,7 +37,7 @@ def compute_sigma_i(
         - neighbors: Indices of k nearest neighbors, shape (n_samples, k)
 
     """
-    X = X.astype(np.float32)
+    # X = X.astype(np.float32)
     n_samples, n_features = X.shape
 
     # Step 1: Use FAISS to compute k-nearest neighbors
